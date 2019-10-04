@@ -78,7 +78,7 @@ public class MainActivity extends AppCompatActivity {
                 String s = String.valueOf(formsCalcs.charAt(formsCalcs.length()-1));
                 if(isSimbol(s) && searchString(s,"\\%") <= 0 && isSimbol(v)){
                     backForm();
-                }else if(searchString(s,"[0-9\\.]") <= 0){
+                }else if(searchString(s,"[0-9\\.]") <= 0 && searchString(v,"\\.") > 0){
                     v = "0.";
                 }
             }else if(searchString(v,"\\.") > 0){
