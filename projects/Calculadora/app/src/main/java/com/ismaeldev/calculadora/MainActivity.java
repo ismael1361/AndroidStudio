@@ -63,26 +63,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private  boolean isSimbol(String v){
-        if(searchString(v,"[\\*\\/\\+\\-\\%]") > 0){
+        if(searchString(v,"[\\*\\/\\+\\-\\%]") > 0 && v.length() == 1){
             return true;
         }
         return false;
     }
 
     private void addOnDisplay(String v){
-        if((v == "0" || (isSimbol(v) && searchString(v,"\\-") <= 0)) && formsCalcs.length() <= 0){
+        if((v == "0" || (v.length() == 1 && isSimbol(v) && searchString(v,"\\-") <= 0)) && formsCalcs.length() <= 0){
         }else{
             if(isResult){clearDisplay();}
             if(formsCalcs == "0"){formsCalcs = "";}
-            if(formsCalcs.length() > 0){
-                String s = String.valueOf(formsCalcs.charAt(formsCalcs.length()-1));
-                if(isSimbol(s) && searchString(s,"\\%") <= 0 && isSimbol(v)){
-                    backForm();
-                }else if(searchString(s,"[0-9\\.]") <= 0 && searchString(v,"\\.") > 0){
+            if(v.length() == 1) {
+                if (formsCalcs.length() > 0) {
+                    String s = String.valueOf(formsCalcs.charAt(formsCalcs.length() - 1));
+                    if (isSimbol(s) && searchString(s, "\\%") <= 0 && isSimbol(v)) {
+                        backForm();
+                    } else if (searchString(s, "[0-9\\.]") <= 0 && searchString(v, "\\.") > 0) {
+                        v = "0.";
+                    }
+                } else if (searchString(v, "\\.") > 0) {
                     v = "0.";
                 }
-            }else if(searchString(v,"\\.") > 0){
-                v = "0.";
             }
             formsCalcs = "" + formsCalcs + v;
             displayResult.setText(formsCalcs);
