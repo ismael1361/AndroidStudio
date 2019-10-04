@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Calcular Idade</string>
+    <string name="mainTextView">Selecione sua data de nascimento:</string>
+</resources>
