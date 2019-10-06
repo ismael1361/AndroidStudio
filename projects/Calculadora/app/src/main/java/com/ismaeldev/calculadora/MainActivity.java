@@ -22,8 +22,6 @@ import java.util.regex.Pattern;
 
 
 public class MainActivity extends AppCompatActivity {
-    private Button btn_mc, btn_mm, btn_mp, btn_mr, btn_c, btn_perc, btn_div, btn_mult, btn_min, btn_add, btn_back, btn_result, btn_np, btn_n0, btn_n1, btn_n2, btn_n3, btn_n4, btn_n5, btn_n6, btn_n7, btn_n8, btn_n9;
-
     private HorizontalScrollView scrollDisplayResult, scrollDisplayForm;
     private TextView displayForm, displayResult, displayActivMemory;
 
@@ -33,28 +31,6 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean isResult = false;
 
-    interface Callback{
-        public void function();
-    }
-
-    public class ButtonEventClick{
-        private Button btn;
-        private Callback func;
-        public Button set(int id, Callback fn){
-            func = (Callback) fn;
-            btn = (Button) findViewById(id);
-            btn.setOnClickListener(new View.OnClickListener(){
-                @Override
-                public void onClick(View v){
-                    Animation anim = AnimationUtils.loadAnimation(MainActivity.this, R.anim.blink_anim);
-                    btn.startAnimation(anim);
-                    func.function();
-                }
-            });
-            return btn;
-        }
-    }
-
     public void alert(String s){
         AlertDialog.Builder dlg = new AlertDialog.Builder(MainActivity.this);
         dlg.setMessage(s);
@@ -63,16 +39,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private  boolean isSimbol(String v){
-        if(searchString(v,"[\\*\\/\\+\\-\\%]") > 0 && v.length() == 1){
-            return true;
-        }
-        return false;
+        return (searchString(v,"[\\*\\/\\+\\-\\%]") > 0 && v.length() == 1);
     }
 
-    private void addOnDisplay(String v){
+    private void showDisplay(String v){
         if((v == "0" || (v.length() == 1 && isSimbol(v) && searchString(v,"\\-") <= 0)) && formsCalcs.length() <= 0){
         }else{
-            if(isResult){clearDisplay();}
+            if(isResult){
+                if(isSimbol(v)){v = displayResult.getText().toString()+v;}
+                clearDisplay();
+            }
             if(formsCalcs == "0"){formsCalcs = "";}
             if(v.length() == 1) {
                 if (formsCalcs.length() > 0) {
@@ -122,8 +98,10 @@ public class MainActivity extends AppCompatActivity {
 
     private String GetFormResult(String form, String reg){
         String r = form;
-        Pattern p;
+        Pattern p = null;
         Matcher m;
+
+        int cam = 0;
 
         if(reg == "\\%"){
             p = Pattern.compile("((\\-)?\\d+(\\.\\d+)?)([\\*\\/\\+\\-])((\\-)?\\d+(\\.\\d+)?)\\%");
@@ -164,8 +142,28 @@ public class MainActivity extends AppCompatActivity {
         return r;
     }
 
-    private void getResult(){
-        String result = formsCalcs;
+    private String getPriority(String strForm){
+        String str = "";
+        int start = -1;
+        if(searchString(strForm,"\\(") > 0){
+            for(int s=0; s<strForm.length(); s++){
+                String letter = Character.toString(strForm.charAt(s));
+                if(searchString(letter,"\\(") > 0){
+                    str = "";
+                    start = s;
+                }else if(searchString(letter,"\\)") > 0){
+                    str = str+letter;
+                    break;
+                }
+                str = str+letter;
+            }
+        }
+        return start < 0 ? "" : str;
+    }
+
+    private String getResult(String strForm){
+        String result = strForm;
+
         Pattern p;
         Matcher m;
 
@@ -177,7 +175,7 @@ public class MainActivity extends AppCompatActivity {
 
         result = result.replace("+", "");
 
-        while (Pattern.compile("([\\*\\/\\+\\%])").matcher(result).find()){
+        while (Pattern.compile("([\\*\\/\\+\\%\\(\\)])").matcher(result).find()){
             result = "err:syntax";
         }
 
@@ -188,6 +186,26 @@ public class MainActivity extends AppCompatActivity {
             result = "err:syntax";
         }
 
+        result = result.replaceAll("(\\d+)\\.00", "$1");
+        result = result.replaceAll("(\\d+\\.\\d)0", "$1");
+
+        return result;
+    }
+
+    private void resolveForm(){
+        String result = formsCalcs, priority = getPriority(result);
+
+        result = result.replaceAll("([0-9]+)\\(", "$1*(");
+        result = result.replaceAll("\\)([0-9]+)", ")*$1");
+
+        while (priority.length() > 0) {
+            String form = priority.replaceFirst("^\\(", "").replaceFirst("\\)$", "");
+            result = result.replace(priority, getResult(form));
+            //priority = getPriority(result);
+            priority = getPriority(result);
+        }
+
+        result = getResult(result);
         displayForm.setText(formsCalcs);
         displayResult.setText(result);
         displayResult.setTextColor(getResources().getColor(R.color.textColor_02));
@@ -196,11 +214,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void addMemory(String simbol){
         if(formsCalcs.length() > 0) {
-            getResult();
+            resolveForm();
             if (searchString(displayResult.getText().toString(), "err//:syntax") <= 0) {
                 if (memory.length() > 0) {
                     formsCalcs = memory + simbol + displayResult.getText().toString();
-                    getResult();
+                    resolveForm();
                     if (searchString(displayResult.getText().toString(), "err//:syntax") <= 0) {
                         memory = displayResult.getText().toString();
                     }
@@ -214,7 +232,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showMemory(){
         if(memory.length() > 0) {
-            addOnDisplay(memory);
+            showDisplay(memory);
         }
     }
 
@@ -222,6 +240,63 @@ public class MainActivity extends AppCompatActivity {
         memory = "";
         clearDisplay();
         displayActivMemory.setVisibility(View.INVISIBLE);
+    }
+
+    public void btnAnimation(View view) {
+        Button btn = (Button) view;
+        Animation anim = AnimationUtils.loadAnimation(MainActivity.this, R.anim.blink_anim);
+        btn.startAnimation(anim);
+    }
+
+    public void btnMemoryClick(View view) {
+        Button btn = (Button) view;
+
+        if(searchString(btn.getText().toString(), "mc") > 0){
+            clearMemory();
+        }else if(searchString(btn.getText().toString(), "m\\-") > 0){
+            addMemory("-");
+        }else if(searchString(btn.getText().toString(), "m\\+") > 0){
+            addMemory("+");
+        }else if(searchString(btn.getText().toString(), "mr") > 0){
+            showMemory();
+        }
+        btnAnimation(view);
+    }
+
+    public void btnClearClick(View view) {
+        Button btn = (Button) view;
+        clearDisplay();
+        btnAnimation(view);
+    }
+
+    public void btnBackClick(View view) {
+        Button btn = (Button) view;
+        backForm();
+        btnAnimation(view);
+    }
+
+    public void btnOperadorClick(View view) {
+        Button btn = (Button) view;
+        if(searchString(btn.getText().toString(), "[\\×\\÷\\+\\-\\%]") > 0){
+            String op = searchString(btn.getText().toString(), "[\\×]") > 0 ? "*" : btn.getText().toString();
+            op = searchString(op, "[\\÷]") > 0 ? "/" : op;
+            showDisplay(op);
+        }else if(searchString(btn.getText().toString(), "\\=") > 0){
+            resolveForm();
+        }else if(searchString(btn.getText().toString(), "[\\(\\)]") > 0){
+            showDisplay(btn.getText().toString());
+        }
+        btnAnimation(view);
+    }
+
+    public void btnNumberClick(View view) {
+        Button btn = (Button) view;
+        if(searchString(btn.getText().toString(), "[0-9]") > 0){
+            showDisplay(btn.getText().toString());
+        }else if(searchString(btn.getText().toString(), "\\.") > 0){
+            showDisplay((String)".");
+        }
+        btnAnimation(view);
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -235,7 +310,6 @@ public class MainActivity extends AppCompatActivity {
         scrollDisplayForm = (HorizontalScrollView) findViewById(R.id.horizontalScrollDisplayFormCalc);
 
         displayForm = (TextView) findViewById(R.id.displayFormCalc);
-        //displayResult.setText("");
 
         displayForm.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override
@@ -247,7 +321,6 @@ public class MainActivity extends AppCompatActivity {
         scrollDisplayResult = (HorizontalScrollView) findViewById(R.id.horizontalScrollDisplayResultCalc);
 
         displayResult = (TextView) findViewById(R.id.displayResultCalc);
-        displayResult.setText("0");
 
         displayResult.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
             @Override
@@ -258,167 +331,6 @@ public class MainActivity extends AppCompatActivity {
 
         displayResult.setTextColor(getResources().getColor(R.color.textColor_01));
 
-        formsCalcs = "";
-
-        btn_mc = new ButtonEventClick().set(R.id.btn_mc, new Callback(){
-            @Override
-            public void function(){
-                clearMemory();
-            }
-        });
-
-        btn_mm = new ButtonEventClick().set(R.id.btn_mm, new Callback(){
-            @Override
-            public void function(){
-                addMemory("-");
-            }
-        });
-
-        btn_mp = new ButtonEventClick().set(R.id.btn_mp, new Callback(){
-            @Override
-            public void function(){
-                addMemory("+");
-            }
-        });
-
-        btn_mr = new ButtonEventClick().set(R.id.btn_mr, new Callback(){
-            @Override
-            public void function(){
-                showMemory();
-            }
-        });
-
-        btn_c = new ButtonEventClick().set(R.id.btn_c, new Callback(){
-            @Override
-            public void function(){
-                clearDisplay();
-            }
-        });
-
-        btn_perc = new ButtonEventClick().set(R.id.btn_perc, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"%");
-            }
-        });
-
-        btn_div = new ButtonEventClick().set(R.id.btn_div, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"/");
-            }
-        });
-
-        btn_mult = new ButtonEventClick().set(R.id.btn_mult, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"*");
-            }
-        });
-
-        btn_min = new ButtonEventClick().set(R.id.btn_min, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"-");
-            }
-        });
-
-        btn_add = new ButtonEventClick().set(R.id.btn_add, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"+");
-            }
-        });
-
-        btn_back = new ButtonEventClick().set(R.id.btn_back, new Callback(){
-            @Override
-            public void function(){
-                backForm();
-            }
-        });
-
-        btn_result = new ButtonEventClick().set(R.id.btn_result, new Callback(){
-            @Override
-            public void function(){
-                getResult();
-            }
-        });
-
-        btn_np = new ButtonEventClick().set(R.id.btn_np, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)".");
-            }
-        });
-
-        btn_n0 = new ButtonEventClick().set(R.id.btn_n0, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"0");
-            }
-        });
-
-        btn_n1 = new ButtonEventClick().set(R.id.btn_n1, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"1");
-            }
-        });
-
-        btn_n2 = new ButtonEventClick().set(R.id.btn_n2, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"2");
-            }
-        });
-
-        btn_n3 = new ButtonEventClick().set(R.id.btn_n3, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"3");
-            }
-        });
-
-        btn_n4 = new ButtonEventClick().set(R.id.btn_n4, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"4");
-            }
-        });
-
-        btn_n5 = new ButtonEventClick().set(R.id.btn_n5, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"5");
-            }
-        });
-
-        btn_n6 = new ButtonEventClick().set(R.id.btn_n6, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"6");
-            }
-        });
-
-        btn_n7 = new ButtonEventClick().set(R.id.btn_n7, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"7");
-            }
-        });
-
-        btn_n8 = new ButtonEventClick().set(R.id.btn_n8, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"8");
-            }
-        });
-
-        btn_n9 = new ButtonEventClick().set(R.id.btn_n9, new Callback(){
-            @Override
-            public void function(){
-                addOnDisplay((String)"9");
-            }
-        });
+        clearDisplay();
     }
 }
