@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Tela de Cadastro - 01</string>
+    <string-array name="sexoList">
+        <item>Masculino</item>
+        <item>Feminino</item>
+    </string-array>
+</resources>
